@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DLS - Synchronized Code & Animation</title>
+    <style>
+        :root {
+            --color-background: #fcfcf9;
+            --color-surface: #fffffe;
+            --color-text: #13343b;
+            --color-text-secondary: #626c71;
+            --color-primary: #21808d;
+            --color-primary-hover: #1d7480;
+            --color-border: rgba(94, 82, 64, 0.2);
+            --color-code-bg: #1e1e1e;
+            --color-code-text: #d4d4d4;
+            --color-active-line: rgba(255, 193, 7, 0.3);
+            --color-line-number: #858585;
+            --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-family-code: 'Courier New', 'Monaco', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family-base);
+            background: var(--color-background);
+            color: var(--color-text);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: var(--color-primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            background: var(--color-surface);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--color-primary-hover);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(94, 82, 64, 0.12);
+            color: var(--color-text);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(94, 82, 64, 0.2);
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .input-group input, .input-group select {
+            padding: 8px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-size: 14px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            height: calc(100vh - 200px);
+        }
+
+        .left-panel, .right-panel {
+            background: var(--color-surface);
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 16px 20px;
+            background: rgba(33, 128, 141, 0.05);
+            border-bottom: 1px solid var(--color-border);
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .graph-container {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #graphCanvas {
+            flex: 1;
+            width: 100%;
+            min-height: 400px;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(33, 128, 141, 0.05);
+            border-radius: 8px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-primary);
+        }
+
+        .code-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-editor {
+            background: var(--color-code-bg);
+            color: var(--color-code-text);
+            font-family: var(--font-family-code);
+            font-size: 11px;
+            line-height: 1.4;
+            overflow-y: auto;
+            overflow-x: auto;
+            max-height: 320px;
+            min-height: 280px;
+            flex-shrink: 0;
+        }
+
+        .code-line {
+            display: flex;
+            min-height: 18px;
+            transition: background-color 0.3s ease;
+        }
+
+        .code-line:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .code-line.active {
+            background: var(--color-active-line);
+            border-left: 4px solid #ffc107;
+        }
+
+        .line-number {
+            color: var(--color-line-number);
+            width: 40px;
+            text-align: right;
+            padding-right: 12px;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .line-content {
+            flex: 1;
+            padding-right: 12px;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        /* Syntax highlighting */
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; }
+        .function { color: #dcdcaa; }
+        .number { color: #b5cea8; }
+        .operator { color: #d4d4d4; }
+
+        .execution-log {
+            height: 250px;
+            min-height: 220px;
+            flex: 1;
+            background: rgba(33, 128, 141, 0.05);
+            padding: 16px;
+            overflow-y: auto;
+            font-family: var(--font-family-code);
+            font-size: 13px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            line-height: 1.5;
+        }
+
+        .log-entry.visit { background: rgba(230, 129, 97, 0.15); color: #e68161; }
+        .log-entry.goal { background: rgba(40, 167, 69, 0.15); color: #28a745; font-weight: 600; }
+        .log-entry.cutoff { background: rgba(255, 193, 7, 0.15); color: #ffc107; }
+        .log-entry.backtrack { background: rgba(192, 21, 47, 0.15); color: #c01529; }
+        .log-entry.failure { background: rgba(192, 21, 47, 0.2); color: #c01529; font-weight: 600; }
+
+        .step-controls {
+            padding: 16px;
+            background: rgba(33, 128, 141, 0.05);
+            border-top: 1px solid var(--color-border);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-shrink: 0;
+            min-height: 60px;
+        }
+
+        .step-controls .btn {
+            flex-shrink: 0;
+            white-space: nowrap;
+            min-width: 120px;
+        }
+
+        .step-controls #stepInfo {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .left-panel, .right-panel {
+                min-height: 500px;
+            }
+            
+            .code-editor {
+                max-height: 350px;
+            }
+            
+            .execution-log {
+                height: 200px;
+            }
+        }
+
+        @media (min-height: 900px) {
+            .code-editor {
+                max-height: 380px;
+            }
+            
+            .execution-log {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 Depth-Limited Search<span class="badge">Code + Animation</span></h1>
+        <p class="subtitle">Real-time synchronized code highlighting with graph visualization</p>
+    </div>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>Battery Limit:</label>
+            <input type="number" id="batteryLimit" value="3" min="1" max="10">
+        </div>
+        <div class="input-group">
+            <label>Start:</label>
+            <select id="startNode">
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
+                <option value="F">F</option>
+                <option value="G">G</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>Goal:</label>
+            <select id="goalNode">
+                <option value="G">G</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
+                <option value="F">F</option>
+            </select>
+        </div>
+        <button class="btn" id="loadBtn">🐍 Load Python Code</button>
+        <button class="btn btn-secondary" id="resetBtn">↻ Reset</button>
+    </div>
+
+    <div class="main-layout">
+        <div class="left-panel">
+            <div class="panel-header">📊 Graph Visualization</div>
+            <div class="graph-container">
+                <div class="stats-bar">
+                    <div class="stat">
+                        <div class="stat-label">Step</div>
+                        <div class="stat-value" id="currentStep">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Battery</div>
+                        <div class="stat-value" id="batteryLevel">100%</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Current Node</div>
+                        <div class="stat-value" id="currentNode">-</div>
+                    </div>
+                </div>
+                <svg id="graphCanvas"></svg>
+            </div>
+            <div class="step-controls">
+                <button class="btn" id="nextBtn" disabled>▶ Next Step</button>
+                <span id="stepInfo">Load algorithm first</span>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel-header">💻 Python Code - depth_limited_search()</div>
+            <div class="code-container">
+                <div class="code-editor" id="codeEditor">
+                    <!-- Code will be populated by JavaScript -->
+                </div>
+                <div class="execution-log" id="executionLog">
+                    <div class="log-entry">Waiting for algorithm execution...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Graph node positions
+        const nodePositions = {
+            'A': {x: 300, y: 80},
+            'B': {x: 180, y: 180},
+            'C': {x: 420, y: 180},
+            'D': {x: 100, y: 300},
+            'E': {x: 260, y: 300},
+            'F': {x: 420, y: 300},
+            'G': {x: 260, y: 420}
+        };
+
+        let graph = {};
+        let nodeStates = {};
+        let searchSteps = [];
+        let currentStepIndex = 0;
+        let isLoaded = false;
+
+        // Python code with line numbers for highlighting - YOUR EXACT CODE INCLUDING GRAPH
+        const pythonCode = [
+            'graph = {',
+            '    \'A\': [\'B\', \'C\'],',
+            '    \'B\': [\'D\', \'E\'],',
+            '    \'C\': [\'F\'],',
+            '    \'D\': [],',
+            '    \'E\': [\'G\'],',
+            '    \'F\': [],',
+            '    \'G\': []',
+            '}',
+            '',
+            'def depth_limited_search(node, goal, limit, path):',
+            '    path.append(node)',
+            '    print(f"Visiting {node}, Remaining battery: {limit}")',
+            '    ',
+            '    if node == goal:',
+            '        print("Goal found! Path:", " -> ".join(path))',
+            '        return True',
+            '    ',
+            '    if limit <= 0:',
+            '        path.pop()',
+            '        return False',
+            '    ',
+            '    for neighbor in graph[node]:',
+            '        if depth_limited_search(neighbor, goal, limit - 1, path):',
+            '            return True',
+            '    ',
+            '    path.pop()',
+            '    return False',
+            '',
+            'start = \'A\'',
+            'goal = \'G\'',
+            'battery_limit = 3',
+            '',
+            'print("\\n--- Robot Path Search ---")'
+        ];
+
+        // Initialize code editor
+        function initializeCodeEditor() {
+            const codeEditor = document.getElementById('codeEditor');
+            codeEditor.innerHTML = '';
+            
+            pythonCode.forEach((line, index) => {
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'code-line';
+                lineDiv.setAttribute('data-line', index + 1);
+                
+                const lineNumber = document.createElement('div');
+                lineNumber.className = 'line-number';
+                lineNumber.textContent = index + 1;
+                
+                const lineContent = document.createElement('div');
+                lineContent.className = 'line-content';
+                lineContent.innerHTML = highlightSyntax(line);
+                
+                lineDiv.appendChild(lineNumber);
+                lineDiv.appendChild(lineContent);
+                codeEditor.appendChild(lineDiv);
+            });
+        }
+
+        // Basic syntax highlighting - escape HTML entities first
+        function highlightSyntax(code) {
+            // First escape HTML entities
+            code = code.replace(/&/g, '&amp;')
+                       .replace(/</g, '&lt;')
+                       .replace(/>/g, '&gt;');
+            
+            // Then apply syntax highlighting
+            return code
+                .replace(/\b(def|if|for|return|global|in|print)\b/g, '<span class="keyword">$1</span>')
+                .replace(/(['"].*?['"])/g, '<span class="string">$1</span>')
+                .replace(/(#.*)/g, '<span class="comment">$1</span>')
+                .replace(/\b(\d+)\b/g, '<span class="number">$1</span>');
+        }
+
+        // Highlight specific line
+        function highlightLine(lineNumber) {
+            // Remove previous highlights
+            document.querySelectorAll('.code-line.active').forEach(line => {
+                line.classList.remove('active');
+            });
+            
+            // Highlight current line
+            if (lineNumber > 0) {
+                const targetLine = document.querySelector(`[data-line="${lineNumber}"]`);
+                if (targetLine) {
+                    targetLine.classList.add('active');
+                    targetLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+
+        // Initialize graph
+        function initializeGraph(graphData) {
+            graph = graphData;
+            nodeStates = {};
+            Object.keys(graph).forEach(node => {
+                nodeStates[node] = {
+                    visited: false,
+                    visiting: false,
+                    inPath: false
+                };
+            });
+            drawGraph();
+        }
+
+        // Draw graph
+        function drawGraph() {
+            const svg = document.getElementById('graphCanvas');
+            svg.innerHTML = '';
+            const rect = svg.getBoundingClientRect();
+            svg.setAttribute('viewBox', `0 0 ${rect.width || 600} 500`);
+
+            // Draw edges
+            Object.keys(graph).forEach(node => {
+                graph[node].forEach(neighbor => {
+                    const start = nodePositions[node];
+                    const end = nodePositions[neighbor];
+                    
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', start.x);
+                    line.setAttribute('y1', start.y);
+                    line.setAttribute('x2', end.x);
+                    line.setAttribute('y2', end.y);
+                    line.setAttribute('stroke', '#626c71');
+                    line.setAttribute('stroke-width', '2');
+                    svg.appendChild(line);
+
+                    // Arrow
+                    const dx = end.x - start.x;
+                    const dy = end.y - start.y;
+                    const len = Math.sqrt(dx*dx + dy*dy);
+                    const ux = dx / len;
+                    const uy = dy / len;
+                    
+                    const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    const arrowX = end.x - ux * 35;
+                    const arrowY = end.y - uy * 35;
+                    const px1 = arrowX - uy * 5;
+                    const py1 = arrowY + ux * 5;
+                    const px2 = arrowX + uy * 5;
+                    const py2 = arrowY - ux * 5;
+                    arrow.setAttribute('points', `${end.x - ux * 30},${end.y - uy * 30} ${px1},${py1} ${px2},${py2}`);
+                    arrow.setAttribute('fill', '#626c71');
+                    svg.appendChild(arrow);
+                });
+            });
+
+            // Draw nodes
+            Object.keys(graph).forEach(node => {
+                const pos = nodePositions[node];
+                const state = nodeStates[node];
+
+                let fillColor = '#f5f5f5';
+                if (state.inPath) fillColor = '#32b8c6';
+                else if (state.visiting) fillColor = '#e68161';
+                else if (state.visited) fillColor = 'rgba(33, 128, 141, 0.3)';
+
+                if (node === document.getElementById('startNode').value) fillColor = '#28a745';
+                if (node === document.getElementById('goalNode').value) fillColor = '#c01529';
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', pos.x);
+                circle.setAttribute('cy', pos.y);
+                circle.setAttribute('r', '30');
+                circle.setAttribute('fill', fillColor);
+                circle.setAttribute('stroke', '#626c71');
+                circle.setAttribute('stroke-width', '2');
+                svg.appendChild(circle);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', pos.x);
+                text.setAttribute('y', pos.y + 5);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('fill', '#13343b');
+                text.setAttribute('font-size', '18');
+                text.setAttribute('font-weight', '600');
+                text.textContent = node;
+                svg.appendChild(text);
+            });
+        }
+
+        // Add log entry
+        function addLogEntry(message, type = 'normal') {
+            const log = document.getElementById('executionLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = message;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Load algorithm
+        async function loadAlgorithm() {
+            const batteryLimit = parseInt(document.getElementById('batteryLimit').value);
+            const start = document.getElementById('startNode').value;
+            const goal = document.getElementById('goalNode').value;
+
+            document.getElementById('loadBtn').disabled = true;
+            document.getElementById('executionLog').innerHTML = '';
+            addLogEntry('🐍 Calling Flask backend...', 'normal');
+
+            try {
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ battery_limit: batteryLimit, start, goal })
+                });
+
+                const data = await response.json();
+                
+                // Initialize graph
+                initializeGraph(data.graph);
+                
+                // Store steps
+                searchSteps = data.steps;
+                currentStepIndex = 0;
+                isLoaded = true;
+
+                document.getElementById('nextBtn').disabled = false;
+                document.getElementById('stepInfo').textContent = `Ready: ${searchSteps.length} steps loaded`;
+                
+                addLogEntry(`✅ Algorithm loaded: ${searchSteps.length} steps`, 'goal');
+                addLogEntry(`Parameters: start=${start}, goal=${goal}, battery=${batteryLimit}`, 'normal');
+
+            } catch (error) {
+                addLogEntry('❌ Error connecting to Flask backend', 'failure');
+                console.error('Error:', error);
+            }
+            
+            document.getElementById('loadBtn').disabled = false;
+        }
+
+        // Execute next step
+        function nextStep() {
+            if (!isLoaded || currentStepIndex >= searchSteps.length) return;
+
+            const step = searchSteps[currentStepIndex];
+            
+            // Update node states
+            if (step.action === 'visit') {
+                Object.keys(nodeStates).forEach(n => nodeStates[n].visiting = false);
+                nodeStates[step.node].visiting = true;
+            } else if (step.action === 'goal') {
+                nodeStates[step.node].visiting = false;
+                step.path.forEach(n => nodeStates[n].inPath = true);
+            } else if (step.action === 'cutoff' || step.action === 'backtrack') {
+                nodeStates[step.node].visiting = false;
+                nodeStates[step.node].visited = true;
+            }
+
+            // Update UI
+            drawGraph();
+            highlightLine(getLineForAction(step.action));
+            addLogEntry(step.message, step.action);
+            
+            // Update stats
+            document.getElementById('currentStep').textContent = currentStepIndex + 1;
+            document.getElementById('batteryLevel').textContent = `${step.remaining_battery}/${document.getElementById('batteryLimit').value}`;
+            document.getElementById('currentNode').textContent = step.node || '-';
+            document.getElementById('stepInfo').textContent = `Step ${currentStepIndex + 1}/${searchSteps.length}`;
+
+            currentStepIndex++;
+            
+            if (currentStepIndex >= searchSteps.length) {
+                document.getElementById('nextBtn').disabled = true;
+                document.getElementById('stepInfo').textContent = 'Algorithm complete!';
+            }
+        }
+
+        // Map action to code line (updated for new line numbers)
+        function getLineForAction(action) {
+            const lineMap = {
+                'visit': 12,     // path.append(node)
+                'goal': 15,      // if node == goal
+                'cutoff': 19,    // if limit <= 0
+                'backtrack': 23, // for neighbor loop
+                'failure': 1
+            };
+            return lineMap[action] || 1;
+        }
+
+        // Reset
+        function reset() {
+            currentStepIndex = 0;
+            isLoaded = false;
+            searchSteps = [];
+            
+            if (Object.keys(graph).length > 0) {
+                Object.keys(nodeStates).forEach(node => {
+                    nodeStates[node].visited = false;
+                    nodeStates[node].visiting = false;
+                    nodeStates[node].inPath = false;
+                });
+                drawGraph();
+            }
+            
+            highlightLine(0);
+            document.getElementById('executionLog').innerHTML = '<div class="log-entry">Waiting for algorithm execution...</div>';
+            document.getElementById('currentStep').textContent = '0';
+            document.getElementById('batteryLevel').textContent = '100%';
+            document.getElementById('currentNode').textContent = '-';
+            document.getElementById('stepInfo').textContent = 'Load algorithm first';
+            document.getElementById('nextBtn').disabled = true;
+        }
+
+        // Initialize
+        async function init() {
+            initializeCodeEditor();
+            try {
+                const response = await fetch('/api/graph');
+                const data = await response.json();
+                initializeGraph(data.graph);
+            } catch (error) {
+                console.log('Backend not ready yet');
+            }
+        }
+
+        // Event listeners
+        document.getElementById('loadBtn').addEventListener('click', loadAlgorithm);
+        document.getElementById('nextBtn').addEventListener('click', nextStep);
+        document.getElementById('resetBtn').addEventListener('click', reset);
+
+        init();
+    </script>
+</body>
+</html>
