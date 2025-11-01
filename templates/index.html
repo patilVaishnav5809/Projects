@@ -457,6 +457,9 @@
             'battery_limit = 3',
             '',
             'print("\\n--- Robot Path Search ---")'
+            'if not depth_limited_search(start, goal, battery_limit, []):',
+            '    print(" \n⚠️ Goal not found within battery limit.")'
+
         ];
 
         // Initialize code editor
