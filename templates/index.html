@@ -149,18 +149,19 @@
             font-size: 16px;
         }
 
-        .graph-container {
-            flex: 1;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-        }
-
         #graphCanvas {
-            flex: 1;
-            width: 100%;
-            min-height: 400px;
-        }
+    width: 600px;
+    height: 500px;
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+.graph-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 
         .stats-bar {
             display: flex;
@@ -382,7 +383,8 @@
                         <div class="stat-value" id="currentNode">-</div>
                     </div>
                 </div>
-                <svg id="graphCanvas"></svg>
+                <svg id="graphCanvas" width="600" height="500"></svg>
+
             </div>
             <div class="step-controls">
                 <button class="btn" id="nextBtn" disabled>▶ Next Step</button>
@@ -456,7 +458,9 @@
             'goal = \'G\'',
             'battery_limit = 3',
             '',
-            'print("\\n--- Robot Path Search ---")'
+            'print("\\n--- Robot Path Search ---")',
+            'if  not depth_limited_search(start, goal, battery_limit, []):',
+            '    print("Goal not found within battery limit")'
         ];
 
         // Initialize code editor
